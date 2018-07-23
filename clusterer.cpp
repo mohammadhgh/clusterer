@@ -253,9 +253,9 @@ art_network ART_Learn(art_network net, vector< vector<float> > ccpdws, vector<in
 				}
 				else
 				{
-					if(currentSortedIndex == numSortedCategories)
+					if(currentSortedIndex == (numSortedCategories-1))
 					{
-						if(currentSortedIndex == net.maxNumCategories)
+						if(currentSortedIndex == (net.maxNumCategories-1))
 						{
 							categorization[sampleNumber] = -1;
 							resonance = 1;
@@ -328,7 +328,7 @@ vector<int> ART_Categorize(art_network net, vector< vector<float> > data)
 			}
 			else
 			{
-				if(currentSortedIndex == numSortedCategories)
+				if(currentSortedIndex == (numSortedCategories-1))
 				{
 					categorization[sampleNumber] = -1;
 					resonance = 1;
@@ -349,9 +349,14 @@ int main()
     struct timeval start, end;
     long learning_time, categorizing_time, seconds, useconds;
 
+    int clustering_mat[MAX_CATEGORIES+1][MAX_CATEGORIES+1];
+    for(int i=0; i<MAX_CATEGORIES+1; i++)
+    	for(int j=0; j<MAX_CATEGORIES+1; j++)
+    		clustering_mat[i][j] = 0;
+
 	vector< vector<float> > pdws;
 
-    ifstream pdw_file("pdw.csv");
+    ifstream pdw_file("pdws.csv");
 
     art_network net = ART_Create_Network();
 
@@ -411,36 +416,53 @@ int main()
     vector< vector<float> >::const_iterator last_test = ccpdws.end();
     vector< vector<float> > ccpdws_test(last, last_test);
 
-    cout << "before ART_Learn\n";
+    cout << "Starting ART_Learn...\n";
 
     gettimeofday(&start, NULL);
-
     net = ART_Learn(net, ccpdws_learn, categorization);
-
     gettimeofday(&end, NULL);
+
+    cout << "Finished ART_Lern.\n";
 
     seconds = end.tv_sec - start.tv_sec;
     useconds = end.tv_usec - start.tv_usec ;
     learning_time = ((seconds)*1000 + useconds/1000.0) + 0.5;
-
     cout << "Learning time: " << learning_time << endl;
 
-    cout << "after ART_Lern\n";
-
-    cout << "Starting categorization.\n";
+    cout << "Starting categorization...\n";
     vector<int> newCat(ccpdws.size()-LEARN_SAMPLES,-2);
 
     gettimeofday(&start, NULL);
     newCat = ART_Categorize(net, ccpdws_test);
     gettimeofday(&end, NULL);
 
+    cout << "Finished categorization.\n";
+
     seconds = end.tv_sec - start.tv_sec;
     useconds = end.tv_usec - start.tv_usec ;
     categorizing_time = ((seconds)*1000 + useconds/1000.0) + 0.5;
-
     cout << "Categorization time: " << categorizing_time << endl;
 
-    cout << "Finished categorization.\n";
+    copy(newCat.begin(),newCat.end(), categorization.begin()+LEARN_SAMPLES);
 
+    for(int i=0; i<(int)categorization.size(); i++)
+    {
+    	if(categorization[i]==-1 || categorization[i]==-2)
+    		clustering_mat[(int)pdws[i][6]][MAX_CATEGORIES] += 1;
+    	else
+    		clustering_mat[(int)pdws[i][6]][categorization[i]] += 1;
+    }
+
+    // Writing down results
+    cout << "Cat\t0\t1\t2\t3\t4\t5\t6\t7\t8\t9\t10\t11\t12\t13\t14\t15\n";
+    for(int i=0; i<MAX_CATEGORIES+1; i++)
+    {
+    	cout << i << "\t";
+    	for(int j=0; j<MAX_CATEGORIES+1; j++)
+    	{
+    		cout << clustering_mat[i][j] << "\t";
+    	}
+    	cout << endl;
+    }
 
 }
